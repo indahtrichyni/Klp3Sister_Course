@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uji Coba Course Service v2 — Gateway Registry Kelompok 1</title>
+<style>
+  *{box-sizing:border-box} body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f172a;color:#e2e8f0;margin:0;padding:20px}
+  h1{font-size:20px;margin:0 0 4px} p.sub{color:#94a3b8;margin:0 0 16px}
+  .card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;margin-bottom:16px}
+  .card h2{font-size:16px;margin:0 0 10px}
+  label{display:block;font-size:13px;color:#94a3b8;margin:8px 0 4px}
+  input,select{width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0}
+  button{border:0;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer;margin:8px 6px 0 0}
+  .btn{background:#2563eb;color:#fff} .btn2{background:#334155;color:#fff} .danger{background:#dc2626;color:#fff} .ok{background:#059669;color:#fff}
+  table{width:100%;border-collapse:collapse;font-size:14px} th,td{border-bottom:1px solid #334155;padding:8px;text-align:left}
+  pre{background:#020617;border:1px solid #334155;border-radius:8px;padding:12px;overflow:auto;white-space:pre-wrap;font-size:13px}
+  .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-weight:700;font-size:13px}
+  .s200{background:#065f46} .s201{background:#1d4ed8} .s400,.s404,.s409,.s401{background:#991b1b}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:640px){.row{grid-template-columns:1fr}}
+  .note{font-size:13px;color:#fbbf24}
+</style>
+</head>
+<body>
+<h1>Course Service v2 — Uji Coba Langsung + Gateway Registry Kelompok 1</h1>
+<p class="sub">Tidak perlu XAMPP, MySQL, atau Postman. Simpan file ini, lalu <b>klik 2 kali</b> untuk membukanya di browser. Perilakunya sama persis dengan API PHP di paket ZIP: field, data awal, dan kode statusnya sama.</p>
+
+<div class="card">
+  <h2>Data Course Saat Ini</h2>
+  <table><thead><tr><th>ID</th><th>Code</th><th>Name</th><th>Credits</th></tr></thead><tbody id="tabel"></tbody></table>
+  <button class="btn2" onclick="resetData()">Reset ke data awal</button>
+  <span class="note">Data awal: PTIK301 Sistem Terdistribusi (3) dan PTIK302 Pemrograman Web (3).</span>
+</div>
+
+<div class="card">
+  <h2>Uji Gateway Registry Kelompok 1 (simulasi, gateway di 8101)</h2>
+  <p style="font-size:14px">Ini meniru persis 4 uji di laporan Kelompok 1: nama valid, nama tidak ditemukan, service mati (503), dan perubahan port tanpa ubah kode.</p>
+  <label><input type="checkbox" id="serviceMati"> Simulasi course MATI (port tidak merespons)</label>
+  <label>Port course di services.json (ubah ini untuk uji perubahan port)</label>
+  <select id="portRegistry"><option value="8103">8103 (awal)</option><option value="8203">8203 (setelah diubah)</option></select>
+  <button class="btn" onclick="ujiRegistry('course')">GET /api/registry/course (di 8101)</button>
+  <button class="btn" onclick="ujiRegistry('sinta')">GET /api/registry/sinta</button>
+  <p style="font-size:13px;color:#94a3b8">Harapan: course hidup &rarr; 200, resolved_url sesuai port di atas. Nama sinta &rarr; 400. Course mati &rarr; 503.</p>
+</div>
+
+<div class="row">
+  <div class="card">
+    <h2>1. Uji API (seperti di Postman)</h2>
+    <label><input type="checkbox" id="viaGateway" checked> Lewat simulasi Gateway (Kelompok 1) — lihat alurnya di log</label>
+    <label><input type="checkbox" id="wajibToken"> Wajibkan token (simulasi Kelompok 2 Authentication)</label>
+    <label>Token (isi apa saja, mis. token-demo)</label>
+    <input id="token" placeholder="kosongkan kalau token tidak diwajibkan">
+    <button class="btn" onclick="uji('GET_ALL')">GET /api/courses</button>
+    <button class="btn" onclick="uji('GET_HEALTH')">GET /api/health</button>
+    <label>ID course (untuk GET detail / DELETE)</label>
+    <input id="idInput" type="number" min="1" value="1">
+    <button class="btn" onclick="uji('GET_ONE')">GET /api/courses/{id}</button>
+    <button class="danger" onclick="uji('DELETE')">DELETE /api/courses/{id}</button>
+    <h2 style="margin-top:16px">2. Tambah Course (POST)</h2>
+    <label>Code (maks. 20 karakter)</label><input id="code" value="PTIK303">
+    <label>Name (maks. 100 karakter)</label><input id="name" value="Basis Data">
+    <label>Credits (angka 1–255)</label><input id="credits" type="number" min="1" max="255" value="3">
+    <button class="ok" onclick="uji('POST')">POST /api/courses</button>
+  </div>
+  <div class="card">
+    <h2>Hasil Uji</h2>
+    <div id="status"></div>
+    <label>Request</label><pre id="req">Belum ada request. Klik salah satu tombol uji.</pre>
+    <label>Response</label><pre id="res">-</pre>
+    <label>Alur (log)</label><pre id="log">Siap diuji.</pre>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Urutan uji yang disarankan (sama seperti demo)</h2>
+  <p style="font-size:14px;line-height:1.7">1. GET semua course → terlihat 2 data awal.<br>
+  2. POST PTIK303 Basis Data → 201 Created, data bertambah jadi 3.<br>
+  3. GET detail id 1 → 200 OK, data PTIK301.<br>
+  4. GET /api/health → 200 OK, status UP (ini yang dicek Kelompok 7).<br>
+  5. DELETE id 3 → 200 OK, course berhasil dihapus.<br>
+  6. GET semua course lagi → data kembali jadi 2. Ini bukti DELETE benar-benar bekerja.<br><br>
+  Coba juga kasus error: POST dengan code yang sama (409), GET id 99 (404), dan centang "Wajibkan token" lalu uji tanpa token (401).</p>
+  <p class="note">Catatan: file ini adalah simulator latihan. Untuk penilaian tugas, tetap gunakan kode PHP + MySQL di ZIP Kelompok3-Course-Service.zip, karena perilaku keduanya dibuat sama.</p>
+</div>
+
+<script>
+var courses = [];
+var nextId = 3;
+function seed() {
+  courses = [
+    {id: 1, code: "PTIK301", name: "Sistem Terdistribusi", credits: 3},
+    {id: 2, code: "PTIK302", name: "Pemrograman Web", credits: 3}
+  ];
+  nextId = 3;
+  render();
+}
+function render() {
+  document.getElementById("tabel").innerHTML = courses.map(function(c) {
+    return "<tr><td>" + c.id + "</td><td>" + c.code + "</td><td>" + c.name + "</td><td>" + c.credits + "</td></tr>";
+  }).join("");
+}
+function resetData() { seed(); tampil(200, "RESET", "Data dikembalikan ke 2 course awal.", {success: true, data: courses}, ["Reset data ke awal."]); }
+function tampil(status, req, resObj, logs) {
+  var cls = status >= 400 ? "s400" : (status === 201 ? "s201" : "s200");
+  document.getElementById("status").innerHTML = '<span class="badge ' + cls + '">' + status + '</span>';
+  document.getElementById("req").textContent = req;
+  document.getElementById("res").textContent = JSON.stringify(resObj, null, 2);
+  document.getElementById("log").textContent = logs.join("\n");
+}
+function cekToken(logs) {
+  if (!document.getElementById("wajibToken").checked) return true;
+  if (document.getElementById("token").value.trim() === "") {
+    tampil(401, "Request ditolak di Gateway", {success: false, message: "Token tidak ditemukan"}, logs.concat(["Client -> API Gateway (Kel 1) -> Authentication (Kel 2): token TIDAK ADA -> 401 Unauthorized. Request tidak diteruskan ke Course."]));
+    return false;
+  }
+  return true;
+}
+function alurAwal() {
+  if (document.getElementById("viaGateway").checked) {
+    return ["Client -> API Gateway (Kel 1)", "API Gateway -> Authentication (Kel 2): token OK", "API Gateway -> Course Service (Kel 3): request diproses"];
+  }
+  return ["Client -> Course Service (Kel 3) langsung (uji mandiri, tanpa Gateway)"];
+}
+function alurAkhir(logs) {
+  return logs.concat(["Course Service -> API Gateway -> Client: respons dikembalikan."]);
+}
+function uji(jenis) {
+  var logs = alurAwal();
+  if (document.getElementById("viaGateway").checked && !cekToken(logs)) return;
+  var id = parseInt(document.getElementById("idInput").value, 10);
+  if (jenis === "GET_ALL") {
+    tampil(200, "GET /api/courses", {success: true, data: courses}, alurAkhir(logs));
+  } else if (jenis === "GET_HEALTH") {
+    tampil(200, "GET /api/health", {success: true, status: "UP", service: "course-service"}, alurAkhir(logs.concat(["Monitoring (Kel 7) memeriksa /health: service sehat."])));
+  } else if (jenis === "GET_ONE") {
+    if (!id || id < 1) { tampil(400, "GET /api/courses/" + document.getElementById("idInput").value, {success: false, message: "ID tidak valid"}, logs); return; }
+    var c = null;
+    for (var i = 0; i < courses.length; i++) { if (courses[i].id === id) c = courses[i]; }
+    if (!c) { tampil(404, "GET /api/courses/" + id, {success: false, message: "Course tidak ditemukan"}, logs); return; }
+    tampil(200, "GET /api/courses/" + id, {success: true, data: c}, alurAkhir(logs));
+  } else if (jenis === "POST") {
+    var code = document.getElementById("code").value.trim();
+    var name = document.getElementById("name").value.trim();
+    var credits = parseInt(document.getElementById("credits").value, 10);
+    var body = {code: code, name: name, credits: credits};
+    if (!code || !name || !credits || credits < 1 || credits > 255 || code.length > 20 || name.length > 100) {
+      tampil(400, "POST /api/courses\n" + JSON.stringify(body, null, 2), {success: false, message: "Data course tidak valid"}, logs); return;
+    }
+    for (var j = 0; j < courses.length; j++) {
+      if (courses[j].code === code) { tampil(409, "POST /api/courses\n" + JSON.stringify(body, null, 2), {success: false, message: "Kode course sudah digunakan"}, logs); return; }
+    }
+    var baru = {id: nextId++, code: code, name: name, credits: credits};
+    courses.push(baru); render();
+    tampil(201, "POST /api/courses\n" + JSON.stringify(body, null, 2), {success: true, message: "Course berhasil ditambahkan", data: baru}, alurAkhir(logs));
+  } else if (jenis === "DELETE") {
+    if (!id || id < 1) { tampil(400, "DELETE /api/courses/" + document.getElementById("idInput").value, {success: false, message: "ID tidak valid"}, logs); return; }
+    var idx = -1;
+    for (var k = 0; k < courses.length; k++) { if (courses[k].id === id) idx = k; }
+    if (idx === -1) { tampil(404, "DELETE /api/courses/" + id, {success: false, message: "Course tidak ditemukan"}, logs); return; }
+    courses.splice(idx, 1); render();
+    tampil(200, "DELETE /api/courses/" + id, {success: true, message: "Course berhasil dihapus"}, alurAkhir(logs));
+  }
+}
+seed();
+
+function ujiRegistry(nama) {
+  var port = document.getElementById("portRegistry").value;
+  var mati = document.getElementById("serviceMati").checked;
+  var url = "GET http://127.0.0.1:8101/api/registry/" + nama;
+  var logs = ["Client / Postman -> gateway.php (127.0.0.1:8101)", "gateway.php -> resolveService('" + nama + "') -> resolver.php", "resolver.php membaca services.json (nama logis & port)"];
+  if (nama !== "course") {
+    tampil(400, url, {status: "error", message: "Konfigurasi error: Nama service '" + nama + "' tidak ditemukan dalam registry."}, logs.concat(["Nama tidak ditemukan dalam registry -> 400 Bad Request."]));
+    return;
+  }
+  if (mati) {
+    tampil(503, url, {status: "error", code: 503, message: "Service 'course' pada alamat http://127.0.0.1:" + port + " tidak merespons (Service Unavailable)."}, logs.concat(["Alamat ditemukan: http://127.0.0.1:" + port, "Gateway cek koneksi: TIDAK merespons -> 503 Service Unavailable."]));
+    return;
+  }
+  tampil(200, url, {status: "success", service: "course", resolved_url: "http://127.0.0.1:" + port, message: "Lookup berhasil!"}, logs.concat(["Alamat ditemukan: http://127.0.0.1:" + port, "Gateway cek koneksi: OK -> teruskan request ke service -> JSON dikembalikan ke client."]));
+}
+</script>
+</body>
+</html>

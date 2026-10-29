@@ -1,0 +1,9 @@
+{
+  "_keterangan": "Kirim salah satu baris di bawah ini ke Kelompok 1 (Gateway di 10.194.169.115) untuk dimasukkan ke services.json mereka:",
+  "opsi_port_8103": {
+    "course": "http://10.194.169.115:8103"
+  },
+  "opsi_port_4001": {
+    "course": "http://10.194.169.115:4001"
+  }
+}
